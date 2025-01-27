@@ -23,10 +23,10 @@ library(plotly)  # For 3D plotting
 library(stats)   # For statistical functions
 library(Rtsne)  # For t-SNE
 library(umap)   # For UMAP
-
+library(dplyr)  # For data manipulation
 
 #set working directory
-setwd("C:/Users/cibei/OneDrive/Desktop/Statistical and machine learning/SL_project")
+setwd("C:/Users/cibei/OneDrive/Desktop/Statistical and machine learning/SL_project/Unsupervized_supervized_analysis")
 
 # Load the credit data
 credit_data <- read.csv("credit_clean/clean_dataset.csv")
@@ -48,17 +48,17 @@ credit_data$DriversLicense <- factor(credit_data$DriversLicense)
 # Check the structure of the dataset after converting categorical variables
 str(credit_data)
 
-# Step 2: Identify numeric features for scaling, excluding the 'Approved' label
+#Identify numeric features for scaling, excluding the 'Approved' label
 num_features <- sapply(credit_data, is.numeric)
 
-# Step 3: Scale numeric features (standardization: center and scale)
+#Scale numeric features (standardization: center and scale)
 preProcValues <- preProcess(credit_data[, num_features], method = c("center", "scale"))
 
 # Apply scaling to the dataset, excluding 'Approved'
 credit_data_scaled <- credit_data
 credit_data_scaled[, num_features] <- predict(preProcValues, credit_data[, num_features])
 
-# Step 4: One-hot encode categorical variables (Industry, Ethnicity, Citizen)
+#One-hot encode categorical variables (Industry, Ethnicity, Citizen)
 dummy_vars <- dummyVars(~ Industry + Ethnicity + Citizen, data = credit_data_scaled)
 
 # Apply the one-hot encoding
@@ -71,7 +71,7 @@ credit_data_final <- cbind(credit_data_scaled[, !(names(credit_data_scaled) %in%
 credit_data_final$Approved <- factor(credit_data_final$Approved, levels = c(0, 1), labels = c("Rejected", "Approved"))
 
 
-# Step 5: Check the structure of the final dataset
+#Check the structure of the final dataset
 str(credit_data_final)
 
 
@@ -138,7 +138,7 @@ ggplot(vif_data, aes(x = reorder(Variable, VIF), y = VIF)) +
   theme_minimal()
 
 
-# Define a VIF threshold (e.g., 5)
+# Define the VIF threshold
 vif_threshold <- 5
 
 # Filter variables that have VIF greater than the threshold
@@ -162,56 +162,6 @@ credit_data_final <- read.csv("credit_data_preprocessed.csv", header = TRUE)
 colnames(credit_data_final)
 
 
-# Select the required columns from credit_data_final
-selected_columns <- credit_data_final[, c("Age", "Debt", "YearsEmployed", 
-                                          "CreditScore", "Income", "Approved")]
-
-# Ensure 'Approved' is treated as a factor (categorical)
-selected_columns$Approved <- as.factor(selected_columns$Approved)
-
-# Define axis properties for the plot
-axis = list(showline = FALSE, 
-            zeroline = FALSE, 
-            gridcolor = '#ffff', 
-            ticklen = 4)
-
-# Create the scatter plot matrix (splom) using plotly
-fig <- selected_columns %>%  
-  plot_ly()  %>%  
-  add_trace(  
-    type = 'splom',  # Scatterplot matrix type
-    dimensions = list( 
-      list(label = 'Age', values = ~Age),  
-      list(label = 'Debt', values = ~Debt),  
-      list(label = 'YearsEmployed', values = ~YearsEmployed),  
-      list(label = 'CreditScore', values = ~CreditScore),  
-      list(label = 'Income', values = ~Income)
-    ),  
-    color = ~Approved,  # Color by the 'Approved' variable
-    colors = c('#636EFA','#EF553B')  # Define colors for 'Approved' and 'Rejected'
-  )
-
-# Customize the layout of the plot
-fig <- fig %>% 
-  layout( 
-    legend = list(title = list(text = 'Approved Status')), 
-    hovermode = 'closest', 
-    dragmode = 'select', 
-    plot_bgcolor = 'rgba(240,240,240,0.95)', 
-    xaxis = axis, 
-    yaxis = axis, 
-    xaxis2 = axis, 
-    xaxis3 = axis, 
-    xaxis4 = axis, 
-    yaxis2 = axis, 
-    yaxis3 = axis, 
-    yaxis4 = axis
-  ) 
-
-# Display the plot
-fig
-
-
 #### Unsupservised Learning ####
 
 
@@ -225,151 +175,122 @@ columns_of_interest <- c("Gender", "Age", "Debt", "YearsEmployed", "PriorDefault
 credit_data_pca <- credit_data_final[, columns_of_interest]
 
 
-# Step 1: Prepare the features (exclude the 'Approved' column)
+#Prepare the features (exclude the 'Approved' column)
 credit_features <- credit_data_pca[, !names(credit_data_pca) %in% "Approved"]
 
-# Check the structure of the new dataset
-str(credit_data_pca)
-
-# Step 2: Standardize the data
-credit_scaled <- scale(credit_features)
-
-# Step 3: Perform PCA on the standardized data
-credit_pca <- prcomp(credit_scaled, center = TRUE, scale. = TRUE)
+# Perform PCA on the standardized data
+credit_pca <- prcomp(credit_features, center = TRUE, scale. = TRUE)
 summary(credit_pca)
 
-# Step 4: Calculate the Eigenvalues and Cumulative Variance
+# Calculate the Eigenvalues and Cumulative Variance
 eigenvalues <- (credit_pca$sdev)^2
 cumulative_variance <- cumsum(eigenvalues) / sum(eigenvalues)
 
-# Step 5: Plot Cumulative Variance Explained
+# Plot Cumulative Variance Explained
 plot(cumulative_variance, type = "b", xlab = "Number of Principal Components", 
      ylab = "Cumulative Variance Explained", main = "Cumulative Variance Explained by PCA")
 abline(h = 0.6, col = "red", lty = 2)  # Reference line at 60%
 
-# Step 6: Visualize Eigenvalues (Scree Plot)
+# Visualize Eigenvalues (Scree Plot)
 fviz_eig(credit_pca, addlabels = TRUE, barfill = "#00AFBB", barcolor = "#FC4E07", ylim = c(0, 37))
 
-# Step 7: Select components with Eigenvalue > 1 (Kaiser Criterion)
+# Select components with Eigenvalue > 1 (Kaiser Criterion)
+eigenvalues
 selected_components <- which(eigenvalues > 1)
 print(paste("Selected components based on eigenvalue > 1: ", selected_components))
 
-# Step 8: Biplot of individuals and variables
+# Biplot of individuals and variables
 fviz_pca_biplot(credit_pca, 
                 geom.ind = "point", 
-                col.ind = as.factor(credit_data_reduced$Approved), 
+                col.ind = as.factor(credit_data_pca$Approved), 
                 palette = c("#00AFBB", "#FC4E07"),  
                 addEllipses = TRUE,  
                 repel = TRUE,  
                 col.var = "blue")  
 
-# Step 9: Contribution of variables to PC1, PC2 and PC3
+# Contribution of variables to PC1, PC2 and PC3
 fviz_contrib(credit_pca, choice = "var", axes = 1, top = 10)  
 fviz_contrib(credit_pca, choice = "var", axes = 2, top = 10)  
 fviz_contrib(credit_pca, choice = "var", axes = 3, top = 10)
 
-# Step 10: Display PCA loadings (how variables contribute to PCs)
+# Display PCA loadings (how variables contribute to PCs)
 pca_loadings <- credit_pca$rotation
-head(pca_loadings)
+pca_loadings
 
-# Step 11: Display PCA scores (transformed data)
+# Display PCA scores (transformed data)
 pca_scores <- credit_pca$x
 head(pca_scores)
 
-#### apply FAMD ####
-
-# Select the columns of interest
-columns_of_interest <- c("Gender", "Age", "Debt", "YearsEmployed", "PriorDefault", 
-                         "Employed", "CreditScore", "Income", "Approved", "Citizen.ByOtherMeans")
-
-# Subset the dataset to include only these columns
-credit_data_famd <- credit_data_final[, columns_of_interest]
-
-# Transform categorical variables into factors
-credit_data_famd$Gender <- factor(credit_data_famd$Gender, levels = c(0, 1), labels = c("Female", "Male"))
-credit_data_famd$PriorDefault <- factor(credit_data_famd$PriorDefault, levels = c(0, 1), labels = c("No", "Yes"))
-credit_data_famd$Employed <- factor(credit_data_famd$Employed, levels = c(0, 1), labels = c("No", "Yes"))
-credit_data_famd$Approved <- factor(credit_data_famd$Approved, levels = c("Rejected", "Approved"))
-credit_data_famd$Citizen.ByOtherMeans <- factor(credit_data_famd$Citizen.ByOtherMeans, levels = c(0, 1), labels = c("No", "Yes"))
-
-# Check the structure of the dataset after the transformation
-str(credit_data_famd)
-
-# Exclude the target variable 'Approved' if you want to analyze only features
-famd_data <- credit_data_famd[, !colnames(credit_data_famd) %in% c('Approved')]
-
-#Eliminate the Industry_Aggregated and Ethnicity_Group columns
-famd_data <- famd_data[, !colnames(famd_data) %in% c("Industry_Aggregated", "Ethnicity_Group")]
-
-# Check the structure of the data to ensure factors were applied correctly
-str(famd_data)
-
-# Ensure the row names are unique for famd_data
-rownames(famd_data) <- make.unique(as.character(1:nrow(famd_data)))
-
-# Apply FAMD on the dataset
-famd_result <- FAMD(famd_data, ncp = 11)  # ncp = number of dimensions to keep, adjust as necessary
-
-# Summary of the FAMD results
-summary(famd_result)
-
-# Extract the individual coordinates (Dim 1 and Dim 2)
-individuals_coords <- as.data.frame(famd_result$ind$coord[, 1:2])  # First two dimensions
-
-# Add the 'Approved' column from your original dataset to the coordinates
-individuals_coords$Approved <- credit_data_final$Approved
-
-# Create a ggplot scatter plot for individuals based on FAMD dimensions
-ggplot(individuals_coords, aes(x = Dim.1, y = Dim.2, color = Approved)) +
-  geom_point(size = 2) +  # Add points
-  theme_minimal() +  # Use a minimal theme for a clean look
-  labs(title = "FAMD Individual Plot", x = "Dimension 1", y = "Dimension 2") +
-  scale_color_manual(values = c("#00AFBB", "#E7B800")) +  # Customize color palette
-  theme(legend.position = "right")  # Position the legend
-
-
-# Plot the variables factor map
-fviz_famd_var(famd_result, repel = TRUE)
-
-# Eigenvalues: Percentage of variance explained by each dimension
-fviz_screeplot(famd_result, 
-               addlabels = TRUE,            # Add labels on each bar
-               ylim = c(0, 30),             # Adjust y-axis limits (based on your dataset)
-               barfill = "steelblue",       # Change the color of the bars
-               barcolor = "black",          # Add a black outline to the bars
-               ggtheme = theme_minimal(),   # Use a minimal theme for a cleaner look
-               title = "Scree Plot of FAMD Dimensions", # Add a descriptive title
-               xlab = "Dimensions",         # Set the x-axis label
-               ylab = "Percentage of Explained Variance" # Set the y-axis label
-) + theme(
-  plot.title = element_text(hjust = 0.5, size = 14, face = "bold"), # Center and style the title
-  axis.title.x = element_text(size = 12, face = "bold"),            # Customize x-axis label
-  axis.title.y = element_text(size = 12, face = "bold"),            # Customize y-axis label
-  axis.text.x = element_text(angle = 45, hjust = 1)                 # Rotate x-axis text for clarity
-)
-
-# Contributions of variables to the dimensions
-fviz_contrib(famd_result, choice = "var", axes = 1, top = 10)
-fviz_contrib(famd_result, choice = "var", axes = 2, top = 10)
-fviz_contrib(famd_result, choice = "var", axes = 3, top = 10)
 
 #### Hierarchical Clustering with Dendrogram ####
 
-# 1. Compute Gower's Distance for the mixed data
-gower_dist <- daisy(famd_data, metric = "gower")
+str(credit_features)
+h_credit <- credit_features
+#Compute Gower's Distance for the mixed data 
+binary_columns <- c(1, 5, 6, 9)  # Column indices of binary variables
+gower_dist <- daisy(h_credit, metric = "gower", 
+                    type = list(binary = binary_columns))
 
 # Convert the Gower distance object to a matrix if necessary
 gower_matrix <- as.matrix(gower_dist)
 
-# 2. Perform Hierarchical Clustering using the 'ward.D2' method (can use other methods like 'complete', 'average')
+#Perform Hierarchical Clustering 
 hclust_result <- hclust(as.dist(gower_matrix), method = "ward.D2")
 
-# 3. Plot the Dendrogram to visualize the hierarchical clustering
-plot(hclust_result, labels = FALSE, main = "Dendrogram for Hierarchical Clustering", xlab = "", sub = "", ylab = "Height")
+#Plot the Dendrogram 
+plot(hclust_result, labels = FALSE, main = "Dendrogram for Hierarchical Clustering", 
+     xlab = "", sub = "", ylab = "Height")
 
-# 4. Use factoextra to visualize cluster6s in a more refined way
-k <- 7  # Specify the number of clusters
+#Elbow Point Identification 
+# Plot the heights of the last 30 merges to find the elbow point
+last_heights <- tail(hclust_result$height, 30)
+num_clusters <- 31:2  # Number of clusters to evaluate
+
+# Plot the last 30 values against the range 2-31
+plot(num_clusters, last_heights, type = 'o', col = 'blue', pch = 16,
+     main = 'Cluster Distance vs Number of Clusters',
+     xlab = 'Number of Clusters', ylab = 'Cluster Distance')
+
+# Add a red dot at the chosen elbow point (index may need adjustment)
+elbow_index <- 23
+points(num_clusters[elbow_index], last_heights[elbow_index], col = 'red', pch = 16)
+
+
+# Use factoextra to visualize with clusters
+k <- 4  # Specify the number of clusters
 fviz_dend(hclust_result, k = k, cex = 0.5, color_labels_by_k = TRUE, rect = TRUE)
+
+#Cut the Dendrogram to Form Clusters 
+cluster_assignments <- cutree(hclust_result, k = k)
+h_credit$cluster <- as.factor(cluster_assignments)  # Add the cluster assignments to the data
+
+# Compute silhouette scores
+silhouette_scores <- silhouette(cluster_assignments, dist(gower_matrix))
+
+# Visualize silhouette plot
+fviz_silhouette(silhouette_scores)
+
+# Print average silhouette width
+avg_silhouette_width <- mean(silhouette_scores[, 3])  # Extract silhouette widths
+cat("Average silhouette width:", avg_silhouette_width, "\n")
+
+# Separate numeric and categorical columns
+numeric_vars <- h_credit %>% select(where(is.numeric), cluster)
+categorical_vars <- h_credit %>% select(where(is.factor), where(is.character), cluster)
+
+# Calculate summary statistics for numeric variables only
+cluster_summary_numeric <- numeric_vars %>%
+  group_by(cluster) %>%
+  summarise(across(everything(), list(mean = ~mean(.), sd = ~sd(.)), .names = "{col}_{fn}"))
+
+# Calculate mode for categorical variables
+cluster_summary_categorical <- categorical_vars %>%
+  group_by(cluster) %>%
+  summarise(across(everything(), ~names(sort(table(.), decreasing = TRUE))[1], .names = "{col}_mode"))
+
+# Print the full data frame with all columns
+print(cluster_summary_numeric, width = Inf)
+print(cluster_summary_categorical, width = Inf)
 
 
 
@@ -390,7 +311,7 @@ colnames(tsne_data) <- c("X1", "X2")
 # Combine t-SNE results with 'Approved' labels
 tsne_combined <- cbind(tsne_data, Approved = label)
 
-### 1. Plot the t-SNE results with the Approved labels using Plotly ###
+#Plot the t-SNE results with the Approved labels using Plotly 
 fig <- plot_ly(data = tsne_combined, x = ~X1, y = ~X2, type = 'scatter', mode = 'markers', 
                split = ~Approved, colors = c('#636EFA','#EF553B'))
 
@@ -405,7 +326,7 @@ fig <- fig %>%
 # Display the plot
 fig
 
-### 2. Apply K-Means Clustering on the t-SNE results ###
+# Apply K-Means Clustering on the t-SNE results
 set.seed(42)
 kmeans_result <- kmeans(tsne_data, centers = 3)  # Adjust 'centers' based on expected clusters
 
@@ -426,7 +347,7 @@ fig_cluster <- fig_cluster %>%
 # Display the clustered t-SNE plot
 fig_cluster
 
-### 3. Silhouette Analysis ###
+#Silhouette Analysis 
 # Calculate silhouette scores for k-means clustering
 silhouette_scores <- silhouette(kmeans_result$cluster, dist(tsne_data))
 
@@ -440,12 +361,12 @@ fviz_silhouette(silhouette_scores, label = TRUE, print.summary = TRUE) +
   theme_minimal() +
   scale_fill_manual(values = c("#00AFBB", "#FC4E07", "#E7B800", "#2E9FDF"))
 
-### 4. Analyze the Distribution of Labels Across Clusters ###
+#Analyze the Distribution of Labels Across Clusters
 # Analyze distribution of Approved status within each t-SNE cluster
 cluster_distribution <- table(tsne_combined$Approved, tsne_combined$Cluster)
 print(cluster_distribution)
 
-### 5. Density Plot ###
+#Density Plot 
 # Visualize density of t-SNE clusters for each label using ggplot2
 ggplot(tsne_combined, aes(x = X1, y = X2, color = credit_data_famd$Approved)) +
   geom_density2d() +
@@ -476,7 +397,7 @@ umap_2d_layout$Approved <- credit_data_famd$Approved
 
 str(umap_2d_layout)
 
-# 2. Create a 2D UMAP plot
+#Create a 2D UMAP plot
 fig_umap_2d <- plot_ly(umap_2d_layout, x = ~UMAP1, y = ~UMAP2, 
                        color = ~Approved, 
                        colors = c('#FF7F7F', '#77B5FE'), 
@@ -492,7 +413,7 @@ fig_umap_2d <- plot_ly(umap_2d_layout, x = ~UMAP1, y = ~UMAP2,
 # Show 2D UMAP plot
 fig_umap_2d
 
-# 3. Apply UMAP for 3D projection
+#Apply UMAP for 3D projection
 umap_result_3d <- umap(credit_data_all_numeric, n_components = 3, config = umap_config)
 
 # Extract UMAP 3D layout and combine with the Approved labels
@@ -527,89 +448,6 @@ trainIndex <- createDataPartition(credit_data_final$Approved, p = 0.8, list = FA
 train_data <- credit_data_final[trainIndex, ]
 test_data <- credit_data_final[-trainIndex, ]
 
-#### Logistic Regression with glm ####
-
-#Define a function that performs K-Fold cross-validation for logistic regression
-logistic_regression_cv <- function(data, formula, k = 10) {
-  set.seed(123) # Set seed for reproducibility
-  
-  # Set up trainControl for k-fold cross-validation
-  train_control <- trainControl(method = "cv", 
-                                number = k, 
-                                classProbs = TRUE, 
-                                summaryFunction = twoClassSummary,
-                                search = "grid",
-                                savePredictions = "final")
-  
-  # Train the logistic regression model using k-fold cross-validation
-  logit_model_cv <- train(formula, 
-                          data = data, 
-                          method = "glm", 
-                          trControl = train_control, 
-                          metric = "ROC",
-                          family = "binomial")
-  
-  return(logit_model_cv)
-}
-
-#Perform 10-fold cross-validation for logistic regression
-cv_model_logit <- logistic_regression_cv(train_data, Approved ~ .)
-
-#Print the cross-validated results
-print(cv_model_logit)
-
-#Extract and display the cross-validation results
-cv_results <- cv_model_logit$results
-print(cv_results)
-
-#Extract the best model from the cross-validated results
-best_model_logit <- cv_model_logit$finalModel
-print(best_model_logit)
-
-#Summarize the best model
-summary(best_model_logit)
-
-
-
-
-#### Logistic Regression with Significant Variables ####
-
-# Define a new formula with only the significant variables
-significant_formula <- Approved ~ PriorDefault + CreditScore + Income + 
-  Industry.ConsumerDiscretionary + Industry.ConsumerStaples + Industry.ConsumerStaples +
-  Industry.Real.Estate + Industry.Research +  Ethnicity.Latino + Ethnicity.Other
-
-# Use the existing logistic_regression_cv function with the new formula
-cv_model_logit_significant <- logistic_regression_cv(train_data, significant_formula)
-
-# Print the cross-validated results
-print(cv_model_logit_significant)
-
-# Extract and display the cross-validation results
-cv_results_significant <- cv_model_logit_significant$results
-print(cv_results_significant)
-
-# Extract the best model from the cross-validated results
-best_model_logit_significant <- cv_model_logit_significant$finalModel
-print(summary(best_model_logit_significant))
-
-# Predict on test data
-predicted_probabilities <- predict(best_model_logit_significant, newdata = test_data, type = "response")
-
-# Ensure the labels match the actual factor levels in the data
-predictions <- ifelse(predicted_probabilities > 0.5, "Approved", "Rejected")
-
-# Convert predictions to a factor with the same levels as test_data$Approved
-predictions <- factor(predictions, levels = levels(test_data$Approved))
-
-# Convert test_data$Approved to a factor with the correct levels
-test_data$Approved <- factor(test_data$Approved, levels = c("Approved", "Rejected"))
-# Convert predictions to factor with the same levels as test_data$Approved
-predictions <- factor(predictions, levels = c("Approved", "Rejected"))
-
-
-# Evaluate model using confusion matrix
-confusionMatrix(predictions, test_data$Approved)
 
 
 
@@ -621,11 +459,11 @@ credit_data_glmnet <- credit_data_final
 
 # Convert categorical variables into dummy variables (one-hot encoding)
 x_data <- model.matrix(Approved ~ ., data = credit_data_glmnet)[, -1]  # Exclude intercept column
-y_data <- as.numeric(credit_data_glmnet$Approved) - 1  # Convert factor Approved to numeric 0/1
+y_data <- ifelse(credit_data_glmnet$Approved == "Approved", 1, 0) # Convert factor Approved to numeric 0/1
 
 # Split the dataset into training and testing sets (70% train, 30% test)
 set.seed(123)
-train_index <- createDataPartition(y_data, p = 0.7, list = FALSE)
+train_index <- createDataPartition(y_data, p = 0.8, list = FALSE)
 x_train <- x_data[train_index, ]
 x_test <- x_data[-train_index, ]
 y_train <- y_data[train_index]
@@ -661,6 +499,7 @@ x_test <- model.matrix(Approved ~ ., data = credit_data_glmnet)[-train_index, no
 # Refit the logistic regression model on the updated training dataset using glmnet
 cv_model_logit_final <- cv.glmnet(x_train, y_train, family = "binomial", alpha = 0.5)
 
+
 ##### Plotting MAE vs Log Lambda #####
 
 # Predict on the training data for all lambdas
@@ -669,10 +508,24 @@ train_predictions_all <- predict(cv_model_logit_final, newx = x_train, s = cv_mo
 # Assess performance across all lambdas
 performance_all_lambdas <- assess.glmnet(train_predictions_all, newy = y_train, family = "binomial")
 
-# Plot the Mean Absolute Error (MAE) against Log Lambda
-plot(cv_model_logit_final$lambda, performance_all_lambdas$mae, log = "x", xlab = "Log Lambda", ylab = "Mean Absolute Error (MAE)", 
-     main = "MAE vs Log Lambda for glmnet")
-abline(v = log(cv_model_logit_final$lambda.min), lty = 2, col = "red")
+# Filter only positive lambda values
+positive_lambda_values <- cv_model_logit_final$lambda[cv_model_logit_final$lambda > 0]
+
+# Filter corresponding MAE values for positive lambda values
+positive_mae_values <- performance_all_lambdas$mae[cv_model_logit_final$lambda > 0]
+
+# Plot Mean Absolute Error (MAE) vs Log Lambda for positive lambdas only
+plot(log(positive_lambda_values), 
+     positive_mae_values, 
+     xlab = "Log Lambda", ylab = "Mean Absolute Error (MAE)", 
+     main = "MAE vs Log Lambda for glmnet",
+     xlim = range(log(positive_lambda_values)),  # Adjust x-axis limits
+     ylim = range(positive_mae_values))  # Adjust y-axis to fit MAE values
+
+# Add a vertical line for the best lambda value (if it is positive)
+if(cv_model_logit_final$lambda.min > 0) {
+  abline(v = log(cv_model_logit_final$lambda.min), lty = 2, col = "red")
+}
 
 ##### Model Assessment Using assess.glmnet #####
 
@@ -792,7 +645,7 @@ fit_rf <- train(Approved ~ .,
                 nodesize = 14,
                 ntree = 1000,
                 tuneGrid = tuneGrid,
-                maxnodes = 15)
+                maxnodes = 14)
                     
 
 ##### Evaluate the model on new data #####
@@ -818,7 +671,6 @@ cat("Recall: ", recall, "\n")
 cat("Specificity: ", specificity, "\n")
 cat("F1-Score: ", f1_score, "\n")
 
-library(ROCR)
 
 # Predict probabilities for the positive class
 prob_predictions <- predict(fit_rf, newdata = test_data, type = "prob")[, "Approved"]
@@ -837,14 +689,11 @@ plot(var_imp, main = "Variable Importance (Random Forest)")
 print(var_imp)
 
 
-
-
-
 ##### Xgboost with k-Fold Cross-Validation #####
 
 # Prepare the dataset (convert to matrix and separate labels)
 X_data <- model.matrix(Approved ~ ., data = credit_data_final)[, -1]  # Convert features to matrix (exclude intercept)
-y_data <- as.numeric(credit_data_final$Approved) - 1  # Convert factor Approved to numeric 0/1 for binary classification
+y_data <- ifelse(credit_data_glmnet$Approved == "Approved", 1, 0) # Convert factor Approved to numeric 0/1
 
 # 80/20 split
 set.seed(123)  # Ensure reproducibility
@@ -882,10 +731,21 @@ hyperparam_grid <- expand.grid(
   subsample = 1  # Subsample ratio of the training instance
 )
 
+# Time-saving hyperparameter grid for XGBoost, with a narrower range
+hyperparam_grid <- expand.grid(
+  nrounds = seq(from = 250, to = 350, by = 50),  # Narrow range around 300
+  eta = c(0.2, 0.3, 0.4),  # Focus around eta = 0.3
+  max_depth = c(4, 5, 6),  # Test depths around 5
+  gamma = c(1, 2, 3),  # Focus on gamma = 2, with some variability
+  colsample_bytree = c(0.4, 0.5, 0.6),  # Around 0.5
+  min_child_weight = c(1, 2),  # Focus around 1
+  subsample = c(0.9, 1)  # Focus around 1
+)
+
 # Set up cross-validation control
 tune_control <- caret::trainControl(
   method = "cv",  # Cross-validation method
-  number = 4,     # 4-fold cross-validation
+  number = 10,     # 4-fold cross-validation
   verboseIter = FALSE,  # Silence training logs
   allowParallel = FALSE  # Disable parallel computing
 )
@@ -919,11 +779,32 @@ final_model <- xgboost(data = as.matrix(X_train),
                        scale_pos_weight = 0.5,  # Adjust for class imbalance
                        verbose = 0)  # Silence output
 
-# Evaluate the final model on the test set
-y_pred <- predict(final_model, as.matrix(X_test), type = "response") > 0.5  # Threshold predictions at 0.5
+# Predict on the test set
+y_pred_prob <- predict(final_model, as.matrix(X_test))  # Predicted probabilities
+y_pred <- ifelse(y_pred_prob > 0.5, 1, 0)  # Convert probabilities to binary predictions (0/1)
 
-accuracy <- sum(y_pred == y_test) / length(y_test)  # Calculate accuracy
-print(paste("Accuracy (Final Model):", accuracy))
+# Convert actual test labels (y_test) to factor for confusion matrix
+y_test_factor <- as.factor(y_test)
+
+# Create a confusion matrix using the `caret` package
+conf_matrix_xgb <- confusionMatrix(as.factor(y_pred), y_test_factor)
+
+# Print the confusion matrix
+print(conf_matrix_xgb)
+
+# Additional metrics
+accuracy <- conf_matrix_xgb$overall['Accuracy']
+precision <- conf_matrix_xgb$byClass['Pos Pred Value']
+recall <- conf_matrix_xgb$byClass['Sensitivity']
+specificity <- conf_matrix_xgb$byClass['Specificity']
+f1_score <- 2 * ((precision * recall) / (precision + recall))
+
+cat("Accuracy: ", accuracy, "\n")
+cat("Precision: ", precision, "\n")
+cat("Recall: ", recall, "\n")
+cat("Specificity: ", specificity, "\n")
+cat("F1-Score: ", f1_score, "\n")
+
 
 # Feature importance plot
 importance_matrix <- xgb.importance(colnames(X_train), model = final_model)  # Get feature importance from the model
